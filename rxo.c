@@ -165,8 +165,13 @@ int main(int argc, char* argv[])
         buf = fbuf + (BUFSIZE * i);
         decode(buf);
     }
-
     fclose(outf);
+
+    outf = fopen("rtlsdr_offline.txt", "r");
+    while((i = fgetc(outf)) != EOF)
+        printf("%c", i);
+    fclose(outf);
+    printf("\n");
 
     return 0;
 }
