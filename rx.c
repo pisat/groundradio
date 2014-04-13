@@ -30,7 +30,7 @@ void read_callback(unsigned char* buf, uint32_t len, void* ctx)
     fwrite(buf, 1, len, outf);
     buffers_received++;
 
-    if(quit_please || buffers_received == 5) {
+    if(quit_please || buffers_received == 20) {
         printf("Final callback, shutting down.\n");
 
         printf("Closing output file...\n");
@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
         printf("Error setting gain mode: %d\nExiting.\n", rv);
         return 5;
     }
-    printf("Gain currently set to %ddB.\n", rtlsdr_get_tuner_gain(rtlsdr));
+    printf("Gain currently set to %d.\n", rtlsdr_get_tuner_gain(rtlsdr));
 
     printf("Setting sample rate to 240kHz...\n");
     rv = rtlsdr_set_sample_rate(rtlsdr, 240000);

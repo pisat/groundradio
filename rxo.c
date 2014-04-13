@@ -153,15 +153,24 @@ void decode(uint8_t* buf)
 int main(int argc, char* argv[])
 {
     int i;
-    uint8_t fbuf[1310720];
+    long length;
+    int n_buffers;
+    uint8_t *fbuf;
     uint8_t *buf;
     inf = fopen("rtlsdr_out.bin", "r");
     outf = fopen("rtlsdr_offline.txt", "w");
-    fread(fbuf, 1, 1310720, inf);
+    fseek(inf, 0, SEEK_END);
+    length = ftell(inf);
+    fseek(inf, 0, SEEK_SET);
+    fbuf = malloc(length);
+    fread(fbuf, 1, length, inf);
     fclose(inf);
 
+    n_buffers = length / BUFSIZE;
+    printf("n_buffers=%d\n", n_buffers);
+
     state = -1;
-    for(i=0; i<5; i++) {
+    for(i=0; i<n_buffers; i++) {
         buf = fbuf + (BUFSIZE * i);
         decode(buf);
     }

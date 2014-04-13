@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 Fs = 240000.0
 bd = 300.0
 bufsize = 131072
-bufno = 3
+bufno = 1
 
 data = np.fromfile("rtlsdr_out.bin", np.uint8).reshape((-1, 2)).astype(float)
 data = data[bufsize*bufno:bufsize*(bufno+2)]
@@ -26,8 +26,8 @@ data = data[:, 0] + 1j*data[:, 1]
 h = scipy.signal.firwin(numtaps=16, cutoff=400.0, nyq=240000/2.0)
 y = scipy.signal.lfilter(h, 1.0, np.abs(data))
 y = y[16:]
-th = (np.max(y) - np.min(y)) / 3
-th = np.mean(y) / 2
+th = (np.max(y) - np.min(y)) / 2
+th = np.mean(y)
 #idx = (bd * bufsize) / Fs
 #print("idx", idx)
 #ph = np.angle(ft[idx])
@@ -48,12 +48,12 @@ print(first_zero)
 z = z[first_zero:]
 y = y[first_zero:]
 
-#bits = np.array((1, 0)).repeat(Fs / bd)
-#bits = np.tile(bits, y.size // ((Fs/bd) * 2))
-#plt.fill_between(np.arange(bits.size), bits*50, alpha=0.5, color='g')
-#plt.fill_between(np.arange(z.size), z*100, alpha=0.5)
-#plt.plot(y)
-#plt.show()
+bits = np.array((1, 0)).repeat(Fs / bd)
+bits = np.tile(bits, y.size // ((Fs/bd) * 2))
+plt.fill_between(np.arange(bits.size), bits*50, alpha=0.5, color='g')
+plt.fill_between(np.arange(z.size), z*100, alpha=0.5)
+plt.plot(y)
+plt.show()
 
 sidxs = np.arange((Fs/bd)/2, z.size, (Fs/bd), dtype=np.int)
 d = z[sidxs]
