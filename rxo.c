@@ -15,12 +15,31 @@ int start_position;
 int state;
 int bitbuffer[8];
 
+/*
+ * a 16-tap FIR LPF filter at 400Hz
+ * scipy.signal.firwin(numtaps=16, cutoff=400.0, nyq=240000/2.0)
+ */
 float filter[16] = {
     0.00977160048227, 0.0146329412836, 0.0283755459692, 0.048627651374,
     0.071889216771,   0.0941376629054, 0.111524339992,  0.121041041222,
     0.121041041222,   0.111524339992,  0.0941376629054, 0.071889216771,
     0.048627651374,   0.0283755459692, 0.0146329412836, 0.00977160048227};
 
+/*
+ * RS232 decoding state machine thing.
+ * Uses global start_position to work out where in the dataset to start
+ * looking, useful when we'd already got sync in a previous buffer and wish to
+ * keep it between buffers.
+ * Uses global state to determine if it's waiting for a start bit, reading a
+ * specific data bit or waiting for a stop bit.
+ * Uses global bitbuffer to hold the eight bits that'l make up the next output
+ * byte.
+ * Writes to outf.
+ *
+ * If state is -1, it will look for the first start bit it sees (transition
+ * low->high), possibly involving skipping this buffer entirely if none are
+ * found.
+ */
 void rs232(float* data, float threshold)
 {
     int i, j;
@@ -36,16 +55,10 @@ void rs232(float* data, float threshold)
             }
         }
 
+        // Start bit not found so skip buffer
         if(start_position <= 20) {
-            printf("Start bit not found, skipping buffer.\n");
             return;
         }
-
-        printf("Start bit: %d\n", start_position);
-
-        for(i=0; i<8; i++)
-            bitbuffer[i] = 0;
-
     }
 
     // Go through each sample point, decoding bytes as we progress.
@@ -56,38 +69,38 @@ void rs232(float* data, float threshold)
         if(state == -1) {
             if(data[i] < threshold) {
                 state = 0;
-                printf("START\n");
             }
         } else if(state >= 0 && state < 8) {
             bitbuffer[state] = data[i] > threshold ? 1 : 0;
-            printf("%d ", bitbuffer[state]);
             state++;
         } else if(state == 8) {
             if(data[i] > threshold) {
+                // Yay, byte done, save it and move on to the next one.
                 state = -1;
-                printf("\nEND\n");
                 out_byte = 0;
                 for(j=0; j<8; j++) {
                     out_byte |= bitbuffer[j] << j;
                     bitbuffer[j] = 0;
                 }
-                printf("Writing out byte: %c\n", out_byte);
                 fputc(out_byte, outf);
             } else {
-                printf("Bad state. Ugh.\n");
+                // This shouldn't happen, so feel bad.
                 state = -1;
             }
         }
     }
 
-    if(state >= 0 && state < 8)
-        printf("\n");
-
+    // This looks dubiously complicated but...
+    // we want to work out how many samples into the next buffer the next
+    // symbol will start. We can take all the samples since our buffer started,
+    // subtract all the samples for symbols we covered, subtract a bit more to
+    // compensate for how we'll be covering any symbols that have their halfway
+    // point inside our buffer, then add one to begin the next symbol.
+    // It works, honest!
     start_position = (BUFSIZE/2 - start_position)
                      - (((BUFSIZE/2 - start_position) / (FS/BD))
                         * (FS/BD))
-                     - (FS/BD)/2;
-    printf("New start position: %d\n", start_position);
+                     - (FS/BD)/2 + 1;
 }
 
 void decode(uint8_t* buf)
@@ -133,8 +146,7 @@ void decode(uint8_t* buf)
     }
     threshold = (acc / (BUFSIZE/2)) / 2;
 
-    printf("Threshold: %f\n", threshold);
-
+    // Decode data
     rs232(data, threshold);
 }
 
